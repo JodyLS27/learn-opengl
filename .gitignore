@@ -1,0 +1,16 @@
+# Anything to do with builds.
+out/
+
+# Dont Include anything that is IDE Specific.
+.vs/
+.idea/
+
+# Dont push anything that can be built. This keeps the Repo small.
+**/external/glfw*
+
+# Dont include any embeded repos.
+/editor/libs/*
+/engine/libs/*
+
+# Draw IO live edit files.
+*.drawio.bkp
