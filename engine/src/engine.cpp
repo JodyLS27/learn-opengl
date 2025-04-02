@@ -10,25 +10,20 @@
 // Temp Data for testing
 const char* vertex_shader_source = "#version 330 core\n"
 "layout(location = 0) in vec3 aPos; \n"
+"layout(location = 1) in vec3 aColour; \n"
+"out vec3 myColour; \n"
 "void main()\n"
 "{\n"
-"	gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0f);\n"
+"	gl_Position = vec4(aPos, 1.0);\n"
+"	myColour = aColour; \n"
 "}\0";
 
-const char* SG_fragment_shader_orange = "#version 330 core\n"
+const char* fragment_shader_source = "#version 330 core\n"
+"in vec3 myColour;\n"
 "out vec4 FragColor;\n"
 "void main()\n"
 "{\n"
-"	FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);"
-"}\n";
-
-
-// Yellow Fragment shader
-const char* SG_fragment_shader_yellow = "#version 330 core\n"
-"out vec4 FragColor;\n"
-"void main()\n"
-"{\n"
-"	FragColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);"
+"	FragColor = vec4(myColour, 1.0); \n"
 "}\n";
 
 #pragma endregion Shaders
@@ -73,48 +68,30 @@ int engine::Engine::start()
 	}
 
 	// --- Fragment Shader ---
-	unsigned int fragment_shader_orange{}, fragment_shader_yellow{};
-	fragment_shader_orange = glCreateShader(GL_FRAGMENT_SHADER);
-	fragment_shader_yellow = glCreateShader(GL_FRAGMENT_SHADER);
+	unsigned int fragment_shader_s{};
+	fragment_shader_s = glCreateShader(GL_FRAGMENT_SHADER);
 
-	glShaderSource(fragment_shader_orange, 1, &SG_fragment_shader_orange, nullptr);
-	glCompileShader(fragment_shader_orange);
-
-	glShaderSource(fragment_shader_yellow, 1, &SG_fragment_shader_yellow, nullptr);
-	glCompileShader(fragment_shader_yellow);
+	glShaderSource(fragment_shader_s, 1, &fragment_shader_source, nullptr);
+	glCompileShader(fragment_shader_s);
 
 	// Fragment Compilation success
-	glGetShaderiv(fragment_shader_orange, GL_COMPILE_STATUS, &success);
+	glGetShaderiv(fragment_shader_s, GL_COMPILE_STATUS, &success);
 
 	if (!success)
 	{
-		glGetShaderInfoLog(fragment_shader_orange, 512, nullptr, info_log);
+		glGetShaderInfoLog(fragment_shader_s, 512, nullptr, info_log);
 		std::cout << "ERROR::SHADER::FRAGMENT::COMPILED FAILED\n" << info_log << "\n\n";
 	}
 
-	glGetShaderiv(fragment_shader_yellow, GL_COMPILE_STATUS, &success);
-
-	if (!success)
-	{
-		glGetShaderInfoLog(fragment_shader_yellow, 512, nullptr, info_log);
-		std::cout << "ERROR::SHADER::FRAGMENT::COMPILED FAILED\n" << info_log << "\n\n";
-	}
-
-
-	// --- Shader Program ---
-	// TODO: Create two Shader Programes with a Second Fragment shader for the Yellow colour
-	unsigned int shader_program[2];
+	// --- Shader Program ---	
+	unsigned int shader_program[1];
 	shader_program[0] = glCreateProgram();
-	shader_program[1] = glCreateProgram();
 
 
 	glAttachShader(shader_program[0], vertex_shader);
-	glAttachShader(shader_program[1], vertex_shader);
-	glAttachShader(shader_program[0], fragment_shader_orange);
-	glAttachShader(shader_program[1], fragment_shader_yellow);
+	glAttachShader(shader_program[0], fragment_shader_s);
 
 	glLinkProgram(shader_program[0]);
-	glLinkProgram(shader_program[1]);
 
 	glGetProgramiv(shader_program[0], GL_LINK_STATUS, &success);
 
@@ -124,19 +101,9 @@ int engine::Engine::start()
 		std::cout << "ERROR::SHADER::PROGRAM::COMPILE FAILED\n" << info_log << "\n\n";
 	}
 
-	glGetProgramiv(shader_program[1], GL_LINK_STATUS, &success);
-
-	if (!success)
-	{
-		glGetProgramInfoLog(shader_program[1], 512, nullptr, info_log);
-		std::cout << "ERROR::SHADER::PROGRAM::COMPILE FAILED\n" << info_log << "\n\n";
-	}
-
-
 	// Cleanup Unneeded Shaders
 	glDeleteShader(vertex_shader);
-	glDeleteShader(fragment_shader_orange);
-	glDeleteShader(fragment_shader_yellow);
+	glDeleteShader(fragment_shader_s);
 
 #pragma endregion Shading
 
@@ -144,15 +111,10 @@ int engine::Engine::start()
 	// --- Vertex Data ---
 	float vertices[] =
 	{
-		// Triangle One
-		-0.7f, 0.25f, 0.0f,		// top
-		-0.9f, -0.25f, 0.0f,		// Left
-		-0.5f, -0.25f, 0.0f,		// Right
-
-		// Triangle two
-		0.7f, 0.25f, 0.0f,		// top
-		0.5f, -0.25f, 0.0f,		// left
-		0.9f, -0.25f, 0.0f		// right
+		// Position				// Colour		
+		-0.0f, 0.5f, 0.0f,  1.0f, 0.0f, 0.0f, 	// top
+		0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,	// Left
+		-0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f	// Right
 	};
 
 	unsigned int indices[] =
@@ -164,24 +126,34 @@ int engine::Engine::start()
 
 #pragma region Vertex_Array_and_Buffers
 
+	// for the amount of objects to create
+	const unsigned int max_objects{ 1 };
+
 	// Setup Vertex Buffer Object
-	GLuint VBOs[2];
-	GLuint VAOs[2];
+	GLuint VBOs[max_objects];
+	GLuint VAOs[max_objects];
+
 
 	// Generate Buffers
-	glGenVertexArrays(2, VAOs);
-	glGenBuffers(2, VBOs);
+	glGenVertexArrays(max_objects, VAOs);
+	glGenBuffers(max_objects, VBOs);
 
 	// Loop over the array
-	for (int i = 0; i < 2; i++)
+	for (int i = 0; i < max_objects; i++)
 	{
 		glBindVertexArray(VAOs[i]);
 		glBindBuffer(GL_ARRAY_BUFFER, VBOs[i]);
 
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) / 2, &vertices[i * 9], GL_STATIC_DRAW);
+		// [i * 9] is the amount of data per row : TODO: do Some testing ?
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) / max_objects, &vertices[i * 9], GL_STATIC_DRAW);
 
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0); // Because the data is Tightly packed, We can let OpenGL figure it out.
+		// Position data
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
 		glEnableVertexAttribArray(0);
+
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+		glEnableVertexAttribArray(1);
+
 	}
 
 #pragma endregion Vertex_Array_and_Buffers
@@ -200,10 +172,11 @@ int engine::Engine::start()
 
 
 
-		for (int i = 0; i < 2; i++)
+		for (int i = 0; i < max_objects; i++)
 		{
 			// Draw Triangle: On the Back Buffer
 			glUseProgram(shader_program[i]);
+
 			glBindVertexArray(VAOs[i]);
 			glDrawArrays(GL_TRIANGLES, 0, 3);
 		}
